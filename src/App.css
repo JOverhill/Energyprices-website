@@ -1,0 +1,9 @@
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  /* Add top padding to make room for the fixed navbar (72px height + small gap) */
+  padding: calc(72px + 1.5rem) 2rem 2rem 2rem;
+
+}
+
+
