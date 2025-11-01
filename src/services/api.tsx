@@ -24,25 +24,34 @@ function formatDateTime(date: Date): string {
 }
 
 /**
- * Get date range for current day (00:00 today to 22:00 tomorrow)
+ * Get date range for current day in UTC (accounting for Finnish timezone)
+ * Finland is UTC+2 (EET) in winter and UTC+3 (EEST) in summer
+ * To get prices starting from 00:00 Finnish time, we need to request from 22:00/21:00 UTC the previous day
  */
 function getCurrentDayRange(): { periodStart: string; periodEnd: string } {
   const now = new Date()
   
-  // Start: today at 00:00
-  const startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0)
+  // Create date at 00:00 local (Finnish) time
+  const localMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0)
   
-  // End: tomorrow at 22:00 (to cover full day-ahead prices)
-  const endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 22, 0, 0)
+  // Convert to UTC by getting the timestamp and creating a UTC date string
+  // We need to subtract the timezone offset to get the correct UTC time
+  const offsetMinutes = localMidnight.getTimezoneOffset()
+  const utcStartTime = new Date(localMidnight.getTime() - offsetMinutes * 60 * 1000)
+  
+  // End: tomorrow at 00:00 local time (in UTC)
+  const localMidnightTomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2, 0, 0, 0)
+  const utcEndTime = new Date(localMidnightTomorrow.getTime() - offsetMinutes * 60 * 1000)
   
   return {
-    periodStart: formatDateTime(startDate),
-    periodEnd: formatDateTime(endDate)
+    periodStart: formatDateTime(utcStartTime),
+    periodEnd: formatDateTime(utcEndTime)
   }
 }
 
 /**
- * Build the API URL with current date parameters
+ * Build the API URL with current date parameters.
+ * Note for self: URLSearchParams automatically adds '=' between each key and value, and '&' between pairs.
  */
 function buildApiUrl(offset: number = 0): string {
   const { periodStart, periodEnd } = getCurrentDayRange()
