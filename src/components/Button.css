@@ -1,0 +1,62 @@
+.app-button {
+  align-items: center;
+  background: transparent;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 0.95rem;
+  font-weight: 600;
+  gap: 0.5rem;
+  justify-content: center;
+  padding: 0.55rem 1.1rem;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.app-button:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.app-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  transform: none;
+}
+
+.app-button--solid {
+  background-color: #102a43;
+  color: #ffffff;
+}
+
+.app-button--solid:hover:not(:disabled) {
+  background-color: #12395c;
+  box-shadow: 0 6px 18px rgba(16, 42, 67, 0.25);
+  transform: translateY(-1px);
+}
+
+.app-button--outline {
+  background-color: #f5f5f5;
+  border-color: #cbd5f5;
+  color: #102a43;
+}
+
+.app-button--outline:hover:not(:disabled) {
+  background-color: #e2e8f0;
+}
+
+.app-button--outline.app-button--active {
+  background-color: #102a43;
+  border-color: #102a43;
+  color: #ffffff;
+}
+
+.app-button--ghost {
+  background-color: transparent;
+  color: #ffffff;
+  border-color: transparent;
+}
+
+.app-button--ghost:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.1);
+}

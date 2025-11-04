@@ -1,4 +1,4 @@
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts'
 import { useEffect, useState } from 'react'
 import { 
   fetchEnergyPrices, 
@@ -8,16 +8,20 @@ import {
   type PricePoint,
   type HourlyPricePoint 
 } from "../services/api"
+import { Button } from './Button'
 
 type ViewMode = '15min' | 'hourly'
 
 export const MainSection = () => {
-  const [rawData, setRawData] = useState<any>(null)
+  const [rawData, setRawData] = useState<unknown>(null)
   const [fifteenMinData, setFifteenMinData] = useState<PricePoint[]>([])
   const [hourlyData, setHourlyData] = useState<HourlyPricePoint[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>('hourly')
+  const [priceMetadata, setPriceMetadata] = useState<{ currency: string; unit: string } | null>(null)
+  const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
 
   useEffect(() => {
     const loadData = async () => {
@@ -33,6 +37,8 @@ export const MainSection = () => {
         
         setFifteenMinData(fifteenMin)
         setHourlyData(hourly)
+        setPriceMetadata({ currency: parsed.currency, unit: parsed.unit })
+        setExportError(null)
         setError(null)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch data')
@@ -62,6 +68,114 @@ export const MainSection = () => {
     const centsPerKwh = eurPerMwh / 10
     const withVAT = centsPerKwh * 1.255
     return withVAT.toFixed(2)
+  }
+
+  const formatDateTimeForCsv = (date: Date) => {
+    return date.toLocaleString('fi-FI', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    })
+  }
+
+  const canExport = viewMode === 'hourly'
+    ? hourlyData.length > 0
+    : fifteenMinData.length > 0
+
+  const handleExport = async () => {
+    if (!canExport) {
+      return
+    }
+
+    try {
+      setExportError(null)
+      setExporting(true)
+
+      const metadata = priceMetadata ?? { currency: 'EUR', unit: 'MWH' }
+      const timestampSuffix = new Date().toISOString().slice(0, 10)
+
+      const rows = viewMode === 'hourly'
+        ? hourlyData.map(point => ({
+            timestampISO: point.timestamp.toISOString(),
+            timestampLocal: formatDateTimeForCsv(point.timestamp),
+            hour: point.hour,
+            averagePriceEurPerMwh: point.averagePrice.toFixed(2),
+            averagePriceCentsPerKwhVAT: convertToCentsPerKwh(point.averagePrice),
+            minPriceEurPerMwh: point.minPrice.toFixed(2),
+            minPriceCentsPerKwhVAT: convertToCentsPerKwh(point.minPrice),
+            maxPriceEurPerMwh: point.maxPrice.toFixed(2),
+            maxPriceCentsPerKwhVAT: convertToCentsPerKwh(point.maxPrice),
+            quarterlyPricesEurPerMwh: point.quarterlyPrices.map(price => price.toFixed(2)).join('|'),
+            currency: metadata.currency,
+            unit: metadata.unit
+          }))
+        : fifteenMinData.map(point => ({
+            timestampISO: point.timestamp.toISOString(),
+            timestampLocal: formatDateTimeForCsv(point.timestamp),
+            priceEurPerMwh: point.price.toFixed(2),
+            priceCentsPerKwhVAT: convertToCentsPerKwh(point.price),
+            currency: metadata.currency,
+            unit: metadata.unit
+          }))
+
+      const headers = viewMode === 'hourly'
+        ? [
+            'timestampISO',
+            'timestampLocal',
+            'hour',
+            'averagePriceEurPerMwh',
+            'averagePriceCentsPerKwhVAT',
+            'minPriceEurPerMwh',
+            'minPriceCentsPerKwhVAT',
+            'maxPriceEurPerMwh',
+            'maxPriceCentsPerKwhVAT',
+            'quarterlyPricesEurPerMwh',
+            'currency',
+            'unit'
+          ]
+        : [
+            'timestampISO',
+            'timestampLocal',
+            'priceEurPerMwh',
+            'priceCentsPerKwhVAT',
+            'currency',
+            'unit'
+          ]
+
+      const response = await fetch('/api/export', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          viewMode,
+          headers,
+          rows,
+          filename: `energy-prices-${viewMode}-${timestampSuffix}.csv`
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`Export failed (${response.status})`)
+      }
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = `energy-prices-${viewMode}-${timestampSuffix}.csv`
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (exportErr) {
+      setExportError(exportErr instanceof Error ? exportErr.message : 'CSV export failed')
+    } finally {
+      setExporting(false)
+    }
   }
 
   // Get the current price based on view mode
@@ -116,11 +230,22 @@ export const MainSection = () => {
 
   // Prepare chart data
   const getChartData = () => {
+    const data = viewMode === 'hourly' ? hourlyData : fifteenMinData
+    
+    // Check if data spans multiple days
+    const hasMultipleDays = data.length > 0 && (() => {
+      const firstDate = data[0].timestamp.toDateString()
+      return data.some(point => point.timestamp.toDateString() !== firstDate)
+    })()
+
     if (viewMode === 'hourly') {
       return hourlyData.map(point => {
         const price = point.averagePrice / 10 * 1.255
+        const timeFormat = hasMultipleDays
+          ? point.timestamp.toLocaleString('fi-FI', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })
+          : point.timestamp.toLocaleTimeString('fi-FI', { hour: '2-digit', minute: '2-digit', hour12: false })
         return {
-          time: point.timestamp.toLocaleTimeString('fi-FI', { hour: '2-digit', minute: '2-digit', hour12: false }),
+          time: timeFormat,
           price: parseFloat(price.toFixed(2)),
           timestamp: point.timestamp
         }
@@ -128,8 +253,11 @@ export const MainSection = () => {
     } else {
       return fifteenMinData.map(point => {
         const price = point.price / 10 * 1.255
+        const timeFormat = hasMultipleDays
+          ? point.timestamp.toLocaleString('fi-FI', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })
+          : point.timestamp.toLocaleTimeString('fi-FI', { hour: '2-digit', minute: '2-digit', hour12: false })
         return {
-          time: point.timestamp.toLocaleTimeString('fi-FI', { hour: '2-digit', minute: '2-digit', hour12: false }),
+          time: timeFormat,
           price: parseFloat(price.toFixed(2)),
           timestamp: point.timestamp
         }
@@ -138,6 +266,25 @@ export const MainSection = () => {
   }
 
   const chartData = getChartData()
+
+  // Check if a timestamp is the current active period
+  const isCurrentPeriod = (timestamp: Date): boolean => {
+    const now = new Date()
+    
+    if (viewMode === 'hourly') {
+      const currentHour = new Date(now)
+      currentHour.setMinutes(0, 0, 0)
+      
+      return timestamp.getTime() === currentHour.getTime()
+    } else {
+      const currentMinutes = now.getMinutes()
+      const roundedMinutes = Math.floor(currentMinutes / 15) * 15
+      const currentInterval = new Date(now)
+      currentInterval.setMinutes(roundedMinutes, 0, 0)
+      
+      return timestamp.getTime() === currentInterval.getTime()
+    }
+  }
 
   // Get color based on price (green for low, yellow for medium, red for high)
   const getBarColor = (price: number) => {
@@ -159,35 +306,33 @@ export const MainSection = () => {
       {!loading && !error && (
         <>
           <div style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button 
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <Button
+                variant="outline"
+                active={viewMode === 'hourly'}
                 onClick={() => setViewMode('hourly')}
-                style={{
-                  padding: '0.5rem 1rem',
-                  background: viewMode === 'hourly' ? '#102a43' : '#f5f5f5',
-                  color: viewMode === 'hourly' ? '#fff' : '#000',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}
+                aria-pressed={viewMode === 'hourly'}
               >
                 Tuntihinta
-              </button>
-              <button 
+              </Button>
+              <Button
+                variant="outline"
+                active={viewMode === '15min'}
                 onClick={() => setViewMode('15min')}
-                style={{
-                  padding: '0.5rem 1rem',
-                  background: viewMode === '15min' ? '#102a43' : '#f5f5f5',
-                  color: viewMode === '15min' ? '#fff' : '#000',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}
+                aria-pressed={viewMode === '15min'}
               >
                 Varttihinta
-              </button>
+              </Button>
             </div>
-            
+
+            <Button
+              onClick={handleExport}
+              disabled={!canExport || exporting}
+              title="Lataa näkyvä hintadata CSV-muodossa"
+            >
+              {exporting ? 'Luodaan CSV…' : 'Vie CSV'}
+            </Button>
+
             {currentPrice && (
               <div style={{
                 padding: '0.5rem 1rem',
@@ -201,6 +346,12 @@ export const MainSection = () => {
               </div>
             )}
           </div>
+
+          {exportError && (
+            <p style={{ color: '#f87171', marginTop: '-0.5rem' }}>
+              {exportError}
+            </p>
+          )}
 
           {/* Bar Chart */}
           <div style={{ 
@@ -228,7 +379,9 @@ export const MainSection = () => {
                 <YAxis 
                   stroke="#aaa"
                   label={{ value: 'Hinta (snt/kWh)', angle: -90, position: 'insideLeft', style: { fill: '#aaa' } }}
+                  domain={['auto', 'auto']}
                 />
+                <ReferenceLine y={0} stroke="#666" strokeDasharray="3 3" />
                 <Tooltip 
                   contentStyle={{ 
                     background: '#2a2a2a', 
@@ -240,6 +393,7 @@ export const MainSection = () => {
                   labelFormatter={(label: string, payload: readonly any[]) => {
                     if (payload && payload.length > 0) {
                       const timestamp = payload[0].payload.timestamp as Date
+                      const dateStr = timestamp.toLocaleDateString('fi-FI', { day: 'numeric', month: 'short' })
                       const startTime = timestamp.toLocaleTimeString('fi-FI', { hour: '2-digit', minute: '2-digit', hour12: false })
                       
                       // Calculate end time based on view mode
@@ -251,16 +405,25 @@ export const MainSection = () => {
                       }
                       const endTime = endTimestamp.toLocaleTimeString('fi-FI', { hour: '2-digit', minute: '2-digit', hour12: false })
                       
-                      return `${startTime} - ${endTime}`
+                      return `${dateStr} ${startTime} - ${endTime}`
                     }
                     return label
                   }}
                   labelStyle={{ color: '#fff' }}
                 />
                 <Bar dataKey="price" radius={[4, 4, 0, 0]}>
-                  {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={getBarColor(entry.price)} />
-                  ))}
+                  {chartData.map((entry, index) => {
+                    const isCurrent = isCurrentPeriod(entry.timestamp)
+                    return (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={getBarColor(entry.price)}
+                        stroke={isCurrent ? '#ffffffff' : 'none'}
+                        strokeWidth={isCurrent ? 3 : 0}
+                        opacity={isCurrent ? 1 : 0.85}
+                      />
+                    )
+                  })}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
