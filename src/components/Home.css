@@ -1,0 +1,185 @@
+.main-section {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.main-section h2 {
+  margin-bottom: 1.5rem;
+}
+
+.loading-text,
+.error-text {
+  padding: 1rem;
+  border-radius: 4px;
+}
+
+.error-text {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.1);
+}
+
+/* Controls Section */
+.controls {
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.view-toggle {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.current-price-badge {
+  padding: 0.5rem 1rem;
+  background: #102a43;
+  color: #fff;
+  border-radius: 4px;
+  font-weight: bold;
+  font-size: 1rem;
+}
+
+.current-price-vat {
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+/* Export Error Popup */
+.export-error {
+  background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%);
+  color: white;
+  padding: 12px 20px;
+  border-radius: 8px;
+  margin-top: 1rem;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(255, 68, 68, 0.3);
+  animation: slideIn 0.3s ease-out;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.export-error-icon {
+  font-size: 18px;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Chart Container */
+.chart-container {
+  padding: 1.5rem;
+  background: #1a1a1a;
+  color: #ffffff;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+}
+
+.chart-title {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+}
+
+/* Data Table Section */
+.data-table-details {
+  margin-top: 1rem;
+}
+
+.data-table-summary {
+  cursor: pointer;
+  padding: 0.5rem;
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+  font-weight: bold;
+}
+
+.data-table-container {
+  padding: 1rem;
+  background: #1a1a1a;
+  color: #ffffff;
+  border-radius: 8px;
+  max-height: 500px;
+  overflow: auto;
+}
+
+.price-table {
+  width: 100%;
+  border-collapse: collapse;
+  color: #ffffff;
+}
+
+.price-table thead tr {
+  border-bottom: 2px solid #444;
+}
+
+.price-table th {
+  padding: 0.5rem;
+}
+
+.price-table th.align-left {
+  text-align: left;
+}
+
+.price-table th.align-right {
+  text-align: right;
+}
+
+.price-table tbody tr {
+  border-bottom: 1px solid #333;
+}
+
+.price-table td {
+  padding: 0.5rem;
+}
+
+.price-table td.align-right {
+  text-align: right;
+}
+
+.price-table td.bold {
+  font-weight: bold;
+}
+
+.price-table td.secondary {
+  color: #aaa;
+}
+
+/* Debug Section */
+.debug-details {
+  margin-top: 1rem;
+}
+
+.debug-summary {
+  cursor: pointer;
+  padding: 0.5rem;
+  color: #fff;
+  background: #1a1a1a;
+  border-radius: 4px;
+}
+
+.debug-pre {
+  margin: 1rem 0 0 0;
+  padding: 1rem;
+  background: #1a1a1a;
+  color: #ffffff;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 400px;
+  overflow: auto;
+}

@@ -55,6 +55,12 @@
   outline: none;
 }
 
+.nav-links li a.active{
+  background: rgba(96, 165, 250, 0.15);
+  color: #60a5fa;
+  font-weight: 600;
+}
+
 /* small screens: reduce spacing and brand size */
 @media (max-width: 520px){
   .navbar__brand{ font-size: 1rem }

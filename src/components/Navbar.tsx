@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { AuthModal } from './AuthModal'
 import { Button } from './Button'
@@ -7,6 +8,7 @@ import './Navbar.css'
 export const Navbar = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const { user, logout } = useAuth()
+  const location = useLocation()
 
   return (
     <>
@@ -18,8 +20,22 @@ export const Navbar = () => {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <ul className="nav-links">
-              <li><a href="#">Etusivu</a></li>
-              <li><a href="#about">Tietoa</a></li>
+              <li>
+                <Link 
+                  to="/" 
+                  className={location.pathname === '/' ? 'active' : ''}
+                >
+                  Etusivu
+                </Link>
+              </li>
+              <li>
+                <Link 
+                  to="/about" 
+                  className={location.pathname === '/about' ? 'active' : ''}
+                >
+                  Tietoa
+                </Link>
+              </li>
             </ul>
             
             {user ? (
