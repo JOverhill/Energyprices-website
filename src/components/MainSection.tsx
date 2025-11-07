@@ -9,6 +9,8 @@ import {
   type HourlyPricePoint 
 } from "../services/api"
 import { Button } from './Button'
+import { useAuth } from '../context/AuthContext'
+import './MainSection.css'
 
 type ViewMode = '15min' | 'hourly'
 
@@ -22,6 +24,7 @@ export const MainSection = () => {
   const [priceMetadata, setPriceMetadata] = useState<{ currency: string; unit: string } | null>(null)
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState<string | null>(null)
+  const { user } = useAuth()
 
   useEffect(() => {
     const loadData = async () => {
@@ -86,6 +89,13 @@ export const MainSection = () => {
     : fifteenMinData.length > 0
 
   const handleExport = async () => {
+    // Check authentication first
+    if (!user) {
+      setExportError('Kirjaudu sisään ladataksesi tiedot')
+      setTimeout(() => setExportError(null), 5000) // Reset error popup after 5 seconds
+      return
+    }
+
     if (!canExport) {
       return
     }
@@ -297,16 +307,16 @@ export const MainSection = () => {
   }
 
   return (
-    <main>
+    <main className="main-section">
       <h2>Sähkön hinta tänään {new Date().toLocaleDateString('fi-FI')}</h2>
       
-      {loading && <p>Loading...</p>}
-      {error && <p style={{ color: 'red' }}>Error: {error}</p>}
+      {loading && <p className="loading-text">Loading...</p>}
+      {error && <p className="error-text">Error: {error}</p>}
       
       {!loading && !error && (
         <>
-          <div style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <div className="controls">
+            <div className="view-toggle">
               <Button
                 variant="outline"
                 active={viewMode === 'hourly'}
@@ -330,38 +340,27 @@ export const MainSection = () => {
               disabled={!canExport || exporting}
               title="Lataa näkyvä hintadata CSV-muodossa"
             >
-              {exporting ? 'Luodaan CSV…' : 'Vie CSV'}
+              {exporting ? 'Luodaan CSV…' : 'Lataa CSV'}
             </Button>
 
             {currentPrice && (
-              <div style={{
-                padding: '0.5rem 1rem',
-                background: '#102a43',
-                color: '#fff',
-                borderRadius: '4px',
-                fontWeight: 'bold',
-                fontSize: '1rem'
-              }}>
-                💡 Sähkön hinta nyt: {convertToCentsPerKwh(currentPrice.price)} snt/kWh <span style={{ fontSize: '0.85rem', opacity: 0.8 }}>(sis. ALV 25.5%)</span>
+              <div className="current-price-badge">
+                💡 Sähkön hinta nyt: {convertToCentsPerKwh(currentPrice.price)} snt/kWh{' '}
+                <span className="current-price-vat">(sis. ALV 25.5%)</span>
               </div>
             )}
           </div>
 
           {exportError && (
-            <p style={{ color: '#f87171', marginTop: '-0.5rem' }}>
+            <div className="export-error">
+              <span className="export-error-icon">⚠️</span>
               {exportError}
-            </p>
+            </div>
           )}
 
           {/* Bar Chart */}
-          <div style={{ 
-            padding: '1.5rem', 
-            background: '#1a1a1a', 
-            color: '#ffffff',
-            borderRadius: '8px',
-            marginBottom: '1.5rem'
-          }}>
-            <h3 style={{ marginTop: 0, marginBottom: '1rem', fontSize: '1.2rem' }}>
+          <div className="chart-container">
+            <h3 className="chart-title">
               {viewMode === 'hourly' ? 'Sähkön tuntihinta' : 'Sähkön varttihinta'}
             </h3>
             <ResponsiveContainer width="100%" height={400}>
@@ -430,45 +429,32 @@ export const MainSection = () => {
           </div>
 
           {/* Data Table */}
-          <details open>
-            <summary style={{ 
-              cursor: 'pointer', 
-              padding: '0.5rem', 
-              marginBottom: '1rem',
-              fontSize: '1.1rem',
-              fontWeight: 'bold'
-            }}>
+          <details open className="data-table-details">
+            <summary className="data-table-summary">
               Yksityiskohtainen hintadata
             </summary>
-            <div style={{ 
-              padding: '1rem', 
-              background: '#1a1a1a', 
-              color: '#ffffff',
-              borderRadius: '8px',
-              maxHeight: '500px',
-              overflow: 'auto'
-            }}>
+            <div className="data-table-container">
             {viewMode === 'hourly' && (
-              <table style={{ width: '100%', borderCollapse: 'collapse', color: '#ffffff' }}>
+              <table className="price-table">
                 <thead>
-                  <tr style={{ borderBottom: '2px solid #444' }}>
-                    <th style={{ textAlign: 'left', padding: '0.5rem' }}>Aika</th>
-                    <th style={{ textAlign: 'right', padding: '0.5rem' }}>Keskihinta (snt/kWh)</th>
-                    <th style={{ textAlign: 'right', padding: '0.5rem' }}>Min</th>
-                    <th style={{ textAlign: 'right', padding: '0.5rem' }}>Max</th>
+                  <tr>
+                    <th className="align-left">Aika</th>
+                    <th className="align-right">Keskihinta (snt/kWh)</th>
+                    <th className="align-right">Min</th>
+                    <th className="align-right">Max</th>
                   </tr>
                 </thead>
                 <tbody>
                   {hourlyData.map((point, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid #333' }}>
-                      <td style={{ padding: '0.5rem' }}>{formatTime(point.timestamp)}</td>
-                      <td style={{ textAlign: 'right', padding: '0.5rem', fontWeight: 'bold' }}>
+                    <tr key={idx}>
+                      <td>{formatTime(point.timestamp)}</td>
+                      <td className="align-right bold">
                         {convertToCentsPerKwh(point.averagePrice)}
                       </td>
-                      <td style={{ textAlign: 'right', padding: '0.5rem', color: '#aaa' }}>
+                      <td className="align-right secondary">
                         {convertToCentsPerKwh(point.minPrice)}
                       </td>
-                      <td style={{ textAlign: 'right', padding: '0.5rem', color: '#aaa' }}>
+                      <td className="align-right secondary">
                         {convertToCentsPerKwh(point.maxPrice)}
                       </td>
                     </tr>
@@ -478,18 +464,18 @@ export const MainSection = () => {
             )}
 
             {viewMode === '15min' && (
-              <table style={{ width: '100%', borderCollapse: 'collapse', color: '#ffffff' }}>
+              <table className="price-table">
                 <thead>
-                  <tr style={{ borderBottom: '2px solid #444' }}>
-                    <th style={{ textAlign: 'left', padding: '0.5rem' }}>Aika</th>
-                    <th style={{ textAlign: 'right', padding: '0.5rem' }}>Hinta (snt/kWh)</th>
+                  <tr>
+                    <th className="align-left">Aika</th>
+                    <th className="align-right">Hinta (snt/kWh)</th>
                   </tr>
                 </thead>
                 <tbody>
                   {fifteenMinData.map((point, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid #333' }}>
-                      <td style={{ padding: '0.5rem' }}>{formatTime(point.timestamp)}</td>
-                      <td style={{ textAlign: 'right', padding: '0.5rem', fontWeight: 'bold' }}>
+                    <tr key={idx}>
+                      <td>{formatTime(point.timestamp)}</td>
+                      <td className="align-right bold">
                         {convertToCentsPerKwh(point.price)}
                       </td>
                     </tr>
@@ -501,20 +487,9 @@ export const MainSection = () => {
           </details>
 
           {/* Debug: Show raw data */}
-          <details style={{ marginTop: '1rem' }}>
-            <summary style={{ cursor: 'pointer', padding: '0.5rem', color: '#fff', background: '#1a1a1a', borderRadius: '4px' }}>Data APIsta JSON-muodossa</summary>
-            <pre style={{ 
-              margin: '1rem 0 0 0',
-              padding: '1rem',
-              background: '#1a1a1a',
-              color: '#ffffff',
-              borderRadius: '8px',
-              fontSize: '0.75rem',
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-              maxHeight: '400px',
-              overflow: 'auto'
-            }}>
+          <details className="debug-details">
+            <summary className="debug-summary">Data APIsta JSON-muodossa</summary>
+            <pre className="debug-pre">
               {JSON.stringify(rawData, null, 2)}
             </pre>
           </details>
