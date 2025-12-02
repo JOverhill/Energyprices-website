@@ -9,10 +9,9 @@ interface User {
 
 interface AuthContextType {
   user: User | null
-  token: string | null
   login: (email: string, password: string) => Promise<void>
   register: (email: string, password: string, name: string) => Promise<void>
-  logout: () => void
+  logout: () => Promise<void>
   isLoading: boolean
   error: string | null
 }
@@ -33,38 +32,29 @@ interface AuthProviderProps {
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null)
-  const [token, setToken] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Check for existing token on mount
+  // Check for existing session on mount
   useEffect(() => {
-    const savedToken = localStorage.getItem('authToken')
-    if (savedToken) {
-      verifyToken(savedToken)
-    } else {
-      setIsLoading(false)
-    }
+    verifySession()
   }, [])
 
-  const verifyToken = async (tokenToVerify: string) => {
+  const verifySession = async () => {
     try {
       const response = await fetch('/api/auth/verify', {
         headers: {
-          'Authorization': `Bearer ${tokenToVerify}`
+          'Content-Type': 'application/json'
         }
+        // Credentials are sent automatically for same-origin requests (proxied)
       })
 
       if (response.ok) {
         const data = await response.json()
         setUser(data.user)
-        setToken(tokenToVerify)
-      } else {
-        localStorage.removeItem('authToken')
       }
     } catch (err) {
-      console.error('Token verification failed:', err)
-      localStorage.removeItem('authToken')
+      console.error('Session verification failed:', err)
     } finally {
       setIsLoading(false)
     }
@@ -84,14 +74,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       })
 
       const data = await response.json()
-      // Ottaa kiinni routes/auth.ts määritellyt errorit
       if (!response.ok) {
         throw new Error(data.error || 'Login failed')
       }
 
       setUser(data.user)
-      setToken(data.token)
-      localStorage.setItem('authToken', data.token)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Login failed'
       setError(errorMessage)
@@ -121,8 +108,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }
 
       setUser(data.user)
-      setToken(data.token)
-      localStorage.setItem('authToken', data.token)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Registration failed'
       setError(errorMessage)
@@ -132,14 +117,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   }
 
-  const logout = () => {
-    setUser(null)
-    setToken(null)
-    localStorage.removeItem('authToken')
+  const logout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' })
+      setUser(null)
+    } catch (err) {
+      console.error('Logout failed:', err)
+    }
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, login, register, logout, isLoading, error }}>
+    <AuthContext.Provider value={{ user, login, register, logout, isLoading, error }}>
       {children}
     </AuthContext.Provider>
   )

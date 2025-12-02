@@ -1,6 +1,7 @@
 import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
+import cookieParser from 'cookie-parser'
 import { csvExportRouter } from './routes/csvExport.js'
 import { authRouter } from './routes/auth.js'
 
@@ -15,6 +16,7 @@ app.use(cors({
   credentials: true
 }))
 app.use(express.json())
+app.use(cookieParser())
 
 // Routes
 app.get('/health', (req, res) => {
@@ -31,7 +33,7 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
 })
 
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`)
-  console.log(`📊 CSV Export: http://localhost:${PORT}/api/export`)
-  console.log(`🔐 Auth: http://localhost:${PORT}/api/auth`)
+  console.log(`Server running on http://localhost:${PORT}`)
+  console.log(`CSV Export: http://localhost:${PORT}/api/export`)
+  console.log(`Auth: http://localhost:${PORT}/api/auth`)
 })

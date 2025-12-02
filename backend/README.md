@@ -1,83 +1,62 @@
 # Energy Prices Backend
 
-Express.js backend for the Energy Prices application with JWT authentication and CSV export.
-
-## Features
-
-- 🔐 JWT Authentication (register, login, verify)
-- 📊 CSV Export endpoint
-- 🚀 TypeScript
-- 🔒 CORS enabled
-- 🌍 Environment-based configuration
+Express.js backend with JWT authentication, CSV export, and SQLite database.
 
 ## Setup
 
-1. **Install dependencies:**
+1. Install dependencies:
    ```bash
    npm install
    ```
 
-2. **Configure environment variables:**
+2. Configure environment:
    - Copy `.env.example` to `.env`
-   - Update `JWT_SECRET` with a secure random string
-   - Set `FRONTEND_URL` to your frontend URL
+   - Set `JWT_SECRET` to a secure random string
+   - Set `FRONTEND_URL` to your frontend URL (default: `http://localhost:5173`)
 
-3. **Development:**
+3. Initialize database:
+   ```bash
+   npx prisma migrate dev
+   ```
+
+4. Run from the root folder:
+   ```bash
+   npm run dev:all
+   ```
+   Or run backend only:
    ```bash
    npm run dev
    ```
 
-4. **Production:**
-   ```bash
-   npm run build
-   npm start
-   ```
-
 ## API Endpoints
 
-### Health Check
-- `GET /health` - Check if server is running
-
-### Authentication
+**Authentication:**
 - `POST /api/auth/register` - Register new user
-- `POST /api/auth/login` - Login user
-- `GET /api/auth/verify` - Verify JWT token
+- `POST /api/auth/login` - Login (sets HttpOnly cookie)
+- `GET /api/auth/verify` - Verify authentication
+- `POST /api/auth/logout` - Logout
 
-### CSV Export
-- `POST /api/export` - Export data as CSV
+**CSV Export:**
+- `POST /api/export` - Export data as CSV (authenticated)
 
-## Deployment
+**Health:**
+- `GET /health` - Server status
 
-### Render.com (Recommended - Free)
+## Database
 
-1. Push code to GitHub
-2. Go to [render.com](https://render.com)
-3. Create new Web Service
-4. Connect your repository
-5. Set build command: `npm install && npm run build`
-6. Set start command: `npm start`
-7. Add environment variables from `.env`
+Uses Prisma with SQLite. Database file: `prisma/dev.db`
 
-### Railway.app
-
-1. Push code to GitHub
-2. Go to [railway.app](https://railway.app)
-3. New Project → Deploy from GitHub
-4. Add environment variables
-5. Deploy!
-
-## Environment Variables
-
-```env
-PORT=3001
-NODE_ENV=production
-JWT_SECRET=your-super-secret-key
-JWT_EXPIRES_IN=7d
-FRONTEND_URL=https://your-frontend-url.com
+View data:
+```bash
+npx prisma studio
 ```
 
-## Notes
+## Production
 
-- Currently uses in-memory storage for users (will be lost on restart)
-- For production, connect to a database (PostgreSQL, MongoDB, etc.)
-- Make sure to use a strong JWT_SECRET in production
+Build and run:
+```bash
+npm run build
+npm start
+```
+
+Make sure to set a strong `JWT_SECRET` and update `FRONTEND_URL` for your production domain.

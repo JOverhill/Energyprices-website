@@ -2,7 +2,7 @@
 
 A React + TypeScript application for displaying real-time energy prices in Finland using the ENTSOE Transparency Platform API.
 Provides a clean barchart, a table view and the raw data from API formatted xml -> JSON.
-![website](image.png)
+![website](image-1.png)
 ## Setup
 
 1. Clone the repository
@@ -16,11 +16,18 @@ Provides a clean barchart, a table view and the raw data from API formatted xml 
 4. Install dependencies:
    ```bash
    npm install
+   cd backend && npm install
    ```
-5. Start the development server:
+5. Set up the backend (see [backend/README.md](backend/README.md) for details):
+   - Configure `.env` in the backend folder
+   - Initialize the database: `cd backend && npx prisma migrate dev`
+6. Start both frontend and backend servers:
    ```bash
-   npm run dev
+   npm run dev:all
    ```
+   Or run them separately:
+   - Frontend only: `npm run dev`
+   - Backend only: `npm run dev:backend`
 
 ## Environment Variables
 

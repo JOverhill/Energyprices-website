@@ -1,18 +1,9 @@
 import { Router, Request, Response } from 'express'
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
+import { prisma } from '../db.js'
 
 const router = Router()
-
-// TEMPORARY: In-memory user storage (replace with database later)
-interface User {
-  id: string
-  email: string
-  password: string
-  name: string
-}
-
-const users: User[] = []
 
 // Register endpoint
 router.post('/register', async (req: Request, res: Response) => {
@@ -25,7 +16,7 @@ router.post('/register', async (req: Request, res: Response) => {
     }
 
     // Check if user exists
-    const existingUser = users.find(u => u.email === email)
+    const existingUser = await prisma.user.findUnique({ where: { email } })
     if (existingUser) {
       res.status(400).json({ error: 'User already exists' })
       return
@@ -35,14 +26,13 @@ router.post('/register', async (req: Request, res: Response) => {
     const hashedPassword = await bcrypt.hash(password, 10)
 
     // Create user
-    const user: User = {
-      id: Date.now().toString(),
-      email,
-      password: hashedPassword,
-      name
-    }
-
-    users.push(user)
+    const user = await prisma.user.create({
+      data: {
+        email,
+        password: hashedPassword,
+        name
+      }
+    })
 
     // Generate JWT
     const token = jwt.sign(
@@ -51,9 +41,16 @@ router.post('/register', async (req: Request, res: Response) => {
       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' } as jwt.SignOptions
     )
 
+    // Set HttpOnly cookie
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', // true in production
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    })
+
     res.status(201).json({
       message: 'User registered successfully',
-      token,
       user: {
         id: user.id,
         email: user.email,
@@ -77,7 +74,7 @@ router.post('/login', async (req: Request, res: Response) => {
     }
 
     // Find user
-    const user = users.find(u => u.email === email)
+    const user = await prisma.user.findUnique({ where: { email } })
     if (!user) {
       res.status(401).json({ error: 'Invalid credentials' })
       return
@@ -97,9 +94,16 @@ router.post('/login', async (req: Request, res: Response) => {
       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' } as jwt.SignOptions
     )
 
+    // Set HttpOnly cookie
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    })
+
     res.json({
       message: 'Login successful',
-      token,
       user: {
         id: user.id,
         email: user.email,
@@ -113,18 +117,17 @@ router.post('/login', async (req: Request, res: Response) => {
 })
 
 // Verify token endpoint
-router.get('/verify', (req: Request, res: Response) => {
+router.get('/verify', async (req: Request, res: Response) => {
   try {
-    const authHeader = req.headers.authorization
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    const token = req.cookies.token
+    if (!token) {
       res.status(401).json({ error: 'No token provided' })
       return
     }
 
-    const token = authHeader.substring(7)
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret') as { id: string; email: string }
 
-    const user = users.find(u => u.id === decoded.id)
+    const user = await prisma.user.findUnique({ where: { id: decoded.id } })
     if (!user) {
       res.status(401).json({ error: 'User not found' })
       return
@@ -141,6 +144,12 @@ router.get('/verify', (req: Request, res: Response) => {
   } catch (error) {
     res.status(401).json({ error: 'Invalid token' })
   }
+})
+
+// Logout endpoint
+router.post('/logout', (req: Request, res: Response) => {
+  res.clearCookie('token')
+  res.json({ message: 'Logged out successfully' })
 })
 
 export { router as authRouter }
